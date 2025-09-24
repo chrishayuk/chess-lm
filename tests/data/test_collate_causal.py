@@ -3,7 +3,7 @@
 import torch
 
 from chess_lm.data.collate_causal import CollateCausal
-from chess_lm.tokenizer import is_state_token, vocab_total_size
+from chess_lm.tokenizer import vocab_total_size
 
 
 def test_collate_causal_basic():
@@ -100,10 +100,10 @@ def test_collate_causal_boundary_mask():
     boundary = result["boundary_mask"][0]
 
     # boundary_mask should be True for state tokens
-    assert boundary[0] == True  # First state
-    assert boundary[1] == False  # First move
-    assert boundary[2] == True  # Second state
-    assert boundary[3] == False  # Second move
+    assert boundary[0]  # First state
+    assert not boundary[1]  # First move
+    assert boundary[2]  # Second state
+    assert not boundary[3]  # Second move
 
 
 def test_collate_causal_only_moves_masking():
@@ -118,10 +118,10 @@ def test_collate_causal_only_moves_masking():
     loss_mask = result["loss_mask"][0]
 
     # Should only train on positions where we predict moves (after states)
-    assert loss_mask[0] == False  # Position 0 (state)
-    assert loss_mask[1] == True  # Position 1 (move after state)
-    assert loss_mask[2] == False  # Position 2 (state after move)
-    assert loss_mask[3] == True  # Position 3 (move after state)
+    assert not loss_mask[0]  # Position 0 (state)
+    assert loss_mask[1]  # Position 1 (move after state)
+    assert not loss_mask[2]  # Position 2 (state after move)
+    assert loss_mask[3]  # Position 3 (move after state)
 
 
 def test_collate_causal_empty_batch():
@@ -199,9 +199,7 @@ def test_collate_causal_mask_sim_mode():
     sim_begin = vocab_total_size() + 100
     sim_end = vocab_total_size() + 101
 
-    collate = CollateCausal(
-        pad_id=vocab_total_size(), mask_mode="mask_sim", sim_begin_id=sim_begin, sim_end_id=sim_end
-    )
+    collate = CollateCausal(pad_id=vocab_total_size(), mask_mode="mask_sim", sim_begin_id=sim_begin, sim_end_id=sim_end)
 
     # Sequence with simulation tokens
     batch = [
@@ -212,14 +210,14 @@ def test_collate_causal_mask_sim_mode():
     loss_mask = result["loss_mask"][0]
 
     # Should mask tokens inside sim_begin...sim_end
-    assert loss_mask[0] == True  # Before sim_begin
-    assert loss_mask[1] == True  # Before sim_begin
-    assert loss_mask[2] == False  # sim_begin itself
-    assert loss_mask[3] == False  # Inside simulation
-    assert loss_mask[4] == False  # Inside simulation
-    assert loss_mask[5] == True  # sim_end (not masked)
-    assert loss_mask[6] == True  # After sim_end
-    assert loss_mask[7] == True  # After sim_end
+    assert loss_mask[0]  # Before sim_begin
+    assert loss_mask[1]  # Before sim_begin
+    assert not loss_mask[2]  # sim_begin itself
+    assert not loss_mask[3]  # Inside simulation
+    assert not loss_mask[4]  # Inside simulation
+    assert loss_mask[5]  # sim_end (not masked)
+    assert loss_mask[6]  # After sim_end
+    assert loss_mask[7]  # After sim_end
 
 
 def test_collate_causal_large_batch():

@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import chess
 from transformers import AutoTokenizer
+
 from chess_lm.data.chess_sequence_dataset import ChessSequenceDataset
 from chess_lm.tokenizer.encoding import is_state_token, decode_moves_only
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -16,7 +18,10 @@ def main():
     ap.add_argument("--check-n", type=int, default=10, help="windows to check")
     args = ap.parse_args()
 
-    _ = AutoTokenizer.from_pretrained(args.vocab)  # Validate vocab exists
+    # Validate vocab exists / loads
+    _ = AutoTokenizer.from_pretrained(args.vocab)
+
+    # Build dataset with initial FENs per window
     ds = ChessSequenceDataset(
         path=args.data,
         max_len=args.max_len,
@@ -26,7 +31,8 @@ def main():
         lazy_load=False,
         validate_tokens=True,
         pad_short_sequences=False,
-        return_info=True,   # so we can see start_pos/game_id
+        return_info=True,       # so we can see metadata
+        emit_initial_fen=True,  # <<— crucial for legality checks on mid-game windows
         verbose=False,
     )
 
@@ -37,32 +43,39 @@ def main():
                 return f"bad alternation at i={i}"
         return "ok"
 
+    def check_legality(ids, initial_fen: str | None) -> str:
+        """Return 'ok' if the sequence of moves is legal from the given starting FEN, else 'illegal'."""
+        try:
+            b = chess.Board() if not initial_fen or initial_fen == "startpos" else chess.Board(initial_fen)
+        except Exception:
+            return "illegal"  # malformed fen
+        for u in decode_moves_only(ids):
+            m = chess.Move.from_uci(u)
+            if m not in b.legal_moves:
+                return "illegal"
+            b.push(m)
+        return "ok"
+
     print(f"windows: {len(ds)}")
     to_check = min(args.check_n, len(ds))
+
     for i in range(to_check):
-        item = ds[i]
+        item = ds[i]  # dict with 'tokens' and metadata
         ids = item["tokens"]
         alt = check_alternation(ids)
 
-        info = ds.window_info[i] if hasattr(ds, 'window_info') else {}
-        start_pos = info.get("start_pos", 0)
+        # Prefer the window's initial_fen, fall back to startpos if absent
+        initial_fen = item.get("initial_fen", "startpos")
 
-        verdict = alt
+        # Pull start_pos mainly for display
+        start_pos = item.get("start_pos", 0)
+
         legality_note = "skipped"
-        if alt == "ok" and start_pos == 0:
-            # Only verify legality when the window starts from the beginning of its game.
-            uci = decode_moves_only(ids)
-            b = chess.Board()
-            ok = True
-            for u in uci:
-                m = chess.Move.from_uci(u)
-                if m not in b.legal_moves:
-                    ok = False
-                    break
-                b.push(m)
-            legality_note = "ok" if ok else "illegal"
+        if alt == "ok":
+            legality_note = check_legality(ids, initial_fen)
+
         print(f"[{i}] alternation={alt} | legality={legality_note} | start_pos={start_pos}")
+
 
 if __name__ == "__main__":
     main()
-

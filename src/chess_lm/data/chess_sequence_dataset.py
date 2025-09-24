@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import chess  # NEW
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -16,6 +17,7 @@ from chess_lm.tokenizer import (
     is_state_token,
     vocab_total_size,
 )
+from chess_lm.tokenizer.moves import id_to_uci  # NEW
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,7 @@ class ChessSequenceDataset(Dataset):
       - Cache support (eager mode)
       - Reproducible shuffling via seed
       - Optional per-item metadata via return_info
+      - Optional per-window initial FEN export for legality masks
     """
 
     def __init__(
@@ -68,6 +71,7 @@ class ChessSequenceDataset(Dataset):
         max_games: Optional[int] = None,
         return_info: bool = False,
         verbose: bool = True,
+        emit_initial_fen: bool = False,  # NEW: store FEN for each window start
     ):
         """
         Args:
@@ -80,13 +84,13 @@ class ChessSequenceDataset(Dataset):
             lazy_load: If True, don't materialize windows; store indices/offsets.
             cache_dir: If set (and eager mode), save/load encoded windows to/from cache.
             validate_tokens: Check token ids are within [0, vocab_size).
-            pad_short_sequences: If True, left windows unpadded unless shorter than max_len, then right-pad.
-                                 By default leave padding to the collator (recommended).
-            pad_token_id: Required if pad_short_sequences=True. Must not collide with real move ids.
+            pad_short_sequences: If True, right-pad windows shorter than max_len.
+            pad_token_id: Required if pad_short_sequences=True. Must not collide with real ids.
             drop_trailing_state: If a window ends on a lone STATE token, drop it so next target is a MOVE.
             max_games: Limit number of games read (useful for debug).
-            return_info: If True, __getitem__ returns dict with 'tokens' and metadata; else returns List[int].
+            return_info: If True, __getitem__ returns dict with metadata; else returns List[int].
             verbose: Log dataset statistics.
+            emit_initial_fen: If True, include "initial_fen" (FEN before window start) in window info.
         """
         self.path = Path(path)
         if not self.path.exists():
@@ -112,6 +116,7 @@ class ChessSequenceDataset(Dataset):
         self.max_games = max_games
         self.return_info = bool(return_info)
         self.verbose = bool(verbose)
+        self.emit_initial_fen = bool(emit_initial_fen)  # NEW
 
         # Vocab & seeding
         self.vocab_size = vocab_total_size()
@@ -155,6 +160,7 @@ class ChessSequenceDataset(Dataset):
             f"_mgl{self.min_game_length}"
             f"_dts{int(self.drop_trailing_state)}"
             f"_pad{int(self.pad_short_sequences)}"
+            f"_eif{int(self.emit_initial_fen)}"  # NEW: emit_initial_fen affects window_info schema
         )
         return self.cache_dir / f"{key}.npz"
 
@@ -271,6 +277,27 @@ class ChessSequenceDataset(Dataset):
 
     # ------------------------- Window construction --------------------------
 
+    def _fen_before(self, tokens: List[int], idx: int) -> str:
+        """
+        FEN of the position just BEFORE tokens[idx].
+        Starts from standard initial position and applies only *legal* MOVE tokens
+        up to idx-1. Robust to occasional noisy/illegal tokens (they're skipped).
+        """
+        bd = chess.Board()
+        j = 0
+        while j < idx:
+            t = tokens[j]
+            if not is_state_token(t):
+                try:
+                    mv = chess.Move.from_uci(id_to_uci(t))
+                except Exception:
+                    j += 1
+                    continue
+                if mv in bd.legal_moves:
+                    bd.push(mv)
+            j += 1
+        return bd.fen()
+
     def _create_windows(self, tokens: List[int], game_id: int) -> List[Dict[str, Any]]:
         windows: List[Dict[str, Any]] = []
 
@@ -301,16 +328,20 @@ class ChessSequenceDataset(Dataset):
                 window_tokens = window_tokens + [self.pad_token_id] * pad_needed  # type: ignore[arg-type]
                 padded = True
 
-            windows.append(
-                {
-                    "tokens": window_tokens,
-                    "game_id": game_id,
-                    "start_pos": start_pos,
-                    "end_pos": end_pos,
-                    "length": len(window_tokens),
-                    "padded": padded,
-                }
-            )
+            win: Dict[str, Any] = {
+                "tokens": window_tokens,
+                "game_id": game_id,
+                "start_pos": start_pos,
+                "end_pos": end_pos,
+                "length": len(window_tokens),
+                "padded": padded,
+            }
+
+            # NEW: attach the initial FEN of this window (position before start_pos)
+            if self.emit_initial_fen:
+                win["initial_fen"] = self._fen_before(tokens, start_pos)
+
+            windows.append(win)
 
             start_pos += self.stride
             if start_pos >= len(tokens):
@@ -421,7 +452,7 @@ class ChessSequenceDataset(Dataset):
         logger.info(f"  Filtered games  : {s.filtered_games:,}")
         logger.info(f"  Vocab size      : {s.vocab_size:,}")
         logger.info(
-            f"  Window size     : {self.max_len}, Stride: {self.stride}, StartOnState: {self.start_on_state}, DropTrailingState: {self.drop_trailing_state}"
+            f"  Window size     : {self.max_len}, Stride: {self.stride}, StartOnState: {self.start_on_state}, DropTrailingState: {self.drop_trailing_state}, EmitInitialFEN: {self.emit_initial_fen}"
         )
 
     # ---------------------------- PyTorch API --------------------------------
@@ -446,7 +477,7 @@ class ChessSequenceDataset(Dataset):
                 padded = True
 
             if self.return_info:
-                return {
+                info: Dict[str, Any] = {
                     "tokens": window,
                     "game_id": game_idx,
                     "start_pos": start_pos,
@@ -454,13 +485,14 @@ class ChessSequenceDataset(Dataset):
                     "length": len(window),
                     "padded": padded,
                 }
+                if self.emit_initial_fen:
+                    info["initial_fen"] = self._fen_before(toks, start_pos)  # NEW
+                return info
             return window
 
         # Eager
         if self.return_info:
-            info = self.window_info[idx]
-            return {
-                "tokens": self.items[idx],
-                **info,
-            }
+            info = dict(self.window_info[idx])  # shallow copy
+            info["tokens"] = self.items[idx]
+            return info
         return self.items[idx]

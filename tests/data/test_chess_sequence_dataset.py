@@ -6,10 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
 
 from chess_lm.data.chess_sequence_dataset import ChessSequenceDataset
-from chess_lm.tokenizer import encode_game, is_state_token, vocab_total_size
+from chess_lm.tokenizer import is_state_token, vocab_total_size
 
 
 @pytest.fixture
@@ -81,9 +80,7 @@ def test_dataset_getitem(games_file):
 
 def test_start_on_state_constraint(games_file):
     """Test that sequences start with state tokens when required"""
-    ds = ChessSequenceDataset(
-        path=str(games_file), max_len=32, stride=16, start_on_state=True, validate_tokens=False
-    )
+    ds = ChessSequenceDataset(path=str(games_file), max_len=32, stride=16, start_on_state=True, validate_tokens=False)
 
     for i in range(min(10, len(ds))):
         tokens = ds[i]
@@ -113,9 +110,7 @@ def test_drop_trailing_state(games_file):
 
 def test_token_alternation(games_file):
     """Test that tokens alternate between state and move"""
-    ds = ChessSequenceDataset(
-        path=str(games_file), max_len=64, stride=32, start_on_state=True, validate_tokens=False
-    )
+    ds = ChessSequenceDataset(path=str(games_file), max_len=64, stride=32, start_on_state=True, validate_tokens=False)
 
     for i in range(min(5, len(ds))):
         tokens = ds[i]
@@ -124,7 +119,7 @@ def test_token_alternation(games_file):
 
         # Check alternation: even indices are states, odd are moves
         for j, tok in enumerate(tokens):
-            expected_state = (j % 2 == 0)
+            expected_state = j % 2 == 0
             actual_state = is_state_token(tok)
             assert expected_state == actual_state, f"Token alternation broken at window {i}, position {j}"
 
@@ -181,7 +176,6 @@ def test_seed_reproducibility(games_file):
 
     # Different seed might produce different order
     # (though with small dataset it might randomly match)
-    different = False
     for i in range(min(5, len(ds1))):
         tokens1 = ds1[i]
         tokens3 = ds3[i]
@@ -190,7 +184,6 @@ def test_seed_reproducibility(games_file):
         if isinstance(tokens3, dict):
             tokens3 = tokens3["tokens"]
         if tokens1 != tokens3:
-            different = True
             break
     # We don't assert different is True because small datasets might coincidentally match
 
@@ -317,7 +310,7 @@ def test_dataset_statistics(games_file):
 def test_dataloader_compatibility(games_file):
     """Test compatibility with PyTorch DataLoader with custom collate"""
     from torch.utils.data import DataLoader
-    
+
     from chess_lm.data.collate_causal import CollateCausal
 
     # Don't use padding in dataset, let collator handle it
@@ -331,7 +324,7 @@ def test_dataloader_compatibility(games_file):
 
     # Get one batch
     batch = next(iter(loader))
-    
+
     assert "input_ids" in batch
     assert "labels" in batch
     assert batch["input_ids"].shape[0] <= 4  # Batch size

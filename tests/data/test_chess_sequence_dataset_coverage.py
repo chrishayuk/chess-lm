@@ -63,9 +63,7 @@ def test_invalid_pad_token_id():
 
     # Test pad_token_id >= vocab_size
     with pytest.raises(ValueError, match="pad_token_id .* out of bounds"):
-        ChessSequenceDataset(
-            path=str(path), max_len=32, pad_short_sequences=True, pad_token_id=vocab_total_size()
-        )
+        ChessSequenceDataset(path=str(path), max_len=32, pad_short_sequences=True, pad_token_id=vocab_total_size())
 
     # Test negative pad_token_id
     with pytest.raises(ValueError, match="pad_token_id .* out of bounds"):
@@ -230,13 +228,18 @@ def test_window_with_offset():
     # Just test that dataset can be created with these parameters
     # This covers the offset code path even if we can't verify the exact behavior
     ds = ChessSequenceDataset(
-        path=str(path), max_len=10, stride=5, start_on_state=True, drop_trailing_state=False, 
-        verbose=False, validate_tokens=False
+        path=str(path),
+        max_len=10,
+        stride=5,
+        start_on_state=True,
+        drop_trailing_state=False,
+        verbose=False,
+        validate_tokens=False,
     )
-    
+
     # Verify windows were created
     assert len(ds) > 0
-    
+
     # Get a window to ensure the offset code path is exercised
     tokens = ds[0]
     if isinstance(tokens, dict):
