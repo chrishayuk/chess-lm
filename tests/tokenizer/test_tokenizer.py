@@ -1,15 +1,15 @@
 import chess
-import pytest
+
 from chess_lm.tokenizer import (
-    vocab_size,
-    state_index,
     NUM_STATE_TOKENS,
+    decode_moves_only,
+    encode_game,
     encode_state,
     is_state_token,
-    encode_game,
+    state_index,
+    uci_to_id,
+    vocab_size,
     vocab_total_size,
-    decode_moves_only,
-    uci_to_id
 )
 
 
@@ -52,22 +52,22 @@ def test_decode_moves_only():
     move1_id = uci_to_id("e2e4")
     move2_id = uci_to_id("e7e5")
     move3_id = uci_to_id("g1f3")
-    
+
     # Create state tokens (any valid state index)
     state_tok1 = encode_state(0)
     state_tok2 = encode_state(10)
-    
+
     # Mix state and move tokens
     tokens = [state_tok1, move1_id, state_tok2, move2_id, move3_id]
-    
+
     # decode_moves_only should only return the moves, ignoring state tokens
     decoded = decode_moves_only(tokens)
     assert decoded == ["e2e4", "e7e5", "g1f3"]
-    
+
     # Test with only state tokens
     state_only = [state_tok1, state_tok2]
     assert decode_moves_only(state_only) == []
-    
+
     # Test with only move tokens
     moves_only = [move1_id, move2_id, move3_id]
     assert decode_moves_only(moves_only) == ["e2e4", "e7e5", "g1f3"]

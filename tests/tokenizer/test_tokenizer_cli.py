@@ -1,22 +1,19 @@
 import json
-import os
-import sys
-import subprocess
 import shutil
+import subprocess
+import sys
 
 import pytest
 
 # Skip gracefully if python-chess or the CLI isn't available in CI
-pytestmark = pytest.mark.skipif(
-    shutil.which(sys.executable) is None,
-    reason="Python executable not found"
-)
+pytestmark = pytest.mark.skipif(shutil.which(sys.executable) is None, reason="Python executable not found")
+
 
 def run_cli(*args):
     """Run the tokenizer CLI and return (rc, stdout, stderr)."""
     # Try to find chess-tokenizer in PATH first (for virtual env)
     chess_tokenizer = shutil.which("chess-tokenizer")
-    
+
     if chess_tokenizer is None:
         # Fallback to running the module directly
         proc = subprocess.run(

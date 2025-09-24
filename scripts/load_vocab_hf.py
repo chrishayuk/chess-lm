@@ -8,7 +8,10 @@ Load the exported chess tokenizer (moves + state) with Hugging Face.
 """
 
 from __future__ import annotations
-import argparse, json, os, sys
+import argparse
+import json
+import os
+import sys
 
 def load_tokenizer(path: str):
     tokjson = os.path.join(path, "tokenizer.json")
@@ -28,7 +31,7 @@ def load_tokenizer(path: str):
         from tokenizers.models import WordLevel
         from tokenizers.pre_tokenizers import Whitespace
         from transformers import PreTrainedTokenizerFast
-    except Exception as e:
+    except Exception:
         print("[error] This loader needs 'tokenizers' and 'transformers'.")
         print("        Install with: uv add tokenizers transformers")
         print("        (Or export tokenizer.json and use AutoTokenizer.)")

@@ -1,7 +1,4 @@
-import pytest
-from chess_lm.tokenizer import (
-    build_uci_catalog, UCI_CATALOG, UCI2ID, ID2UCI, uci_to_id, id_to_uci, vocab_size
-)
+from chess_lm.tokenizer import ID2UCI, UCI2ID, UCI_CATALOG, id_to_uci, uci_to_id, vocab_size
 
 
 def test_catalog_nonempty_and_unique():

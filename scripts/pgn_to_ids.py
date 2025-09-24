@@ -1,4 +1,5 @@
-import argparse, json
+import argparse
+import json
 import chess.pgn
 
 def statize(board: chess.Board):

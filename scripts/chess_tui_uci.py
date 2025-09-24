@@ -21,7 +21,6 @@ Commands:
   quit / exit    Leave
 """
 from __future__ import annotations
-import sys
 import shlex
 from typing import List, Optional
 

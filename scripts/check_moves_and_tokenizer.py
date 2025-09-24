@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import random, sys
+import sys
 import chess
 from chess_lm.tokenizer import (
     UCI_CATALOG, uci_to_id, id_to_uci, vocab_size,

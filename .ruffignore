@@ -1,0 +1,2 @@
+# Interactive TUI scripts have different style requirements
+scripts/chess_tui_*.py
