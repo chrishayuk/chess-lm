@@ -86,8 +86,8 @@ format-check: ## Check code formatting without changes
 
 type-check: ## Run type checking with mypy
 	@echo "$(GREEN)Running type checker...$(NC)"
-	$(MYPY) src/ || true
-	@echo "$(YELLOW)Note: Type checking is informational$(NC)"
+	$(MYPY) src/ || (echo "$(RED)✗ Type checking failed$(NC)" && exit 1)
+	@echo "$(GREEN)✓ Type checking passed$(NC)"
 
 clean: ## Clean build artifacts and cache
 	@echo "$(GREEN)Cleaning build artifacts...$(NC)"
@@ -113,7 +113,7 @@ build: clean ## Build distribution packages
 
 # Composite targets
 
-check: lint format-check test ## Run all checks (lint, format, test)
+check: lint format-check type-check test ## Run all checks (lint, format, type-check, test)
 	@echo "$(GREEN)✅ All checks passed!$(NC)"
 
 all: clean install lint format test coverage ## Run everything (clean, install, lint, format, test, coverage)

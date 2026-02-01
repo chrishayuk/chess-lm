@@ -7,9 +7,18 @@ wheels/
 *.egg-info
 htmlcov/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Coverage
+.coverage
+coverage.json
 
 # Virtual environments
 .venv
 
 # output
 out/
+
+# Misc artifacts
+board.svg

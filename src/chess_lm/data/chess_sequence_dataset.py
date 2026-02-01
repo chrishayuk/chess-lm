@@ -324,8 +324,9 @@ class ChessSequenceDataset(Dataset):
             # dataset-level padding (usually leave to collator)
             padded = False
             if self.pad_short_sequences and len(window_tokens) < self.max_len:
+                assert self.pad_token_id is not None
                 pad_needed = self.max_len - len(window_tokens)
-                window_tokens = window_tokens + [self.pad_token_id] * pad_needed  # type: ignore[arg-type]
+                window_tokens = window_tokens + [self.pad_token_id] * pad_needed
                 padded = True
 
             win: Dict[str, Any] = {
@@ -363,8 +364,9 @@ class ChessSequenceDataset(Dataset):
         with open(self.path, "rb") as f:
             f.seek(offset)
             line = f.read(length)
-        game = json.loads(line.decode("utf-8"))
-        return encode_game(game)
+        game: Dict[str, Any] = json.loads(line.decode("utf-8"))
+        result: List[int] = encode_game(game)
+        return result
 
     # ------------------------------- Stats ----------------------------------
 
@@ -472,8 +474,9 @@ class ChessSequenceDataset(Dataset):
 
             padded = False
             if self.pad_short_sequences and len(window) < self.max_len:
+                assert self.pad_token_id is not None
                 pad_needed = self.max_len - len(window)
-                window = window + [self.pad_token_id] * pad_needed  # type: ignore[arg-type]
+                window = window + [self.pad_token_id] * pad_needed
                 padded = True
 
             if self.return_info:
@@ -491,8 +494,9 @@ class ChessSequenceDataset(Dataset):
             return window
 
         # Eager
+        tokens: List[int] = self.items[idx]
         if self.return_info:
             info = dict(self.window_info[idx])  # shallow copy
-            info["tokens"] = self.items[idx]
+            info["tokens"] = tokens
             return info
-        return self.items[idx]
+        return tokens

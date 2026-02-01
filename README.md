@@ -8,7 +8,7 @@ A Python library for tokenizing chess games for language model training. This li
 - **State Encoding**: Encodes chess board states including castling rights, en passant, and side to move
 - **Legal Move Masking**: Generate masks for legal moves in any position
 - **PGN Processing**: Convert PGN files to tokenized sequences for training
-- **Efficient Vocabulary**: ~4,096 move tokens + 320 state tokens for complete game representation
+- **Efficient Vocabulary**: 4,208 move tokens + 288 state tokens for complete game representation
 
 ## Installation
 
@@ -41,13 +41,7 @@ move_id = uci_to_id("e2e4")
 move_uci = id_to_uci(move_id)
 
 # Encode a complete game
-game = {
-    "states": [
-        {"stm_white": True, "castles": "KQkq", "ep_file": None},
-        {"stm_white": False, "castles": "KQkq", "ep_file": "e"}
-    ],
-    "moves": ["e2e4", "e7e5"]
-}
+game = {"moves": ["e2e4", "e7e5"]}
 tokens = encode_game(game)  # Returns [state_token, move_token, state_token, move_token]
 ```
 
@@ -137,7 +131,7 @@ chess-lm/
 The library uses a comprehensive catalog of all possible chess moves in UCI notation:
 - All piece moves (including castling as king moves)
 - All pawn promotions (queen, rook, bishop, knight)
-- Total vocabulary: ~4,096 unique moves
+- Total vocabulary: 4,208 unique moves
 
 ### State Tokens
 
@@ -145,7 +139,7 @@ Board states are encoded with:
 - Side to move (white/black)
 - Castling rights (KQkq combinations)
 - En passant file (if applicable)
-- Total: 320 unique state tokens
+- Total: 288 unique state tokens
 
 ### Token Sequence Format
 
@@ -203,15 +197,15 @@ make check  # Runs format, lint, typecheck, and tests
 # Individual checks
 make format     # Format code with black and isort
 make lint       # Check code with ruff
-make typecheck  # Type checking with mypy
+make type-check # Type checking with mypy
 ```
 
 ### Test Coverage
 
 The project maintains high test coverage:
-- Overall: 94% coverage
-- Tokenizer module: 95%+ coverage
-- Data module: 95%+ coverage
+- Overall: 91% coverage
+- Tokenizer module: 90–100% coverage
+- Data module: 89% coverage
 
 ## Use Cases
 
@@ -229,7 +223,7 @@ The project maintains high test coverage:
 
 ## License
 
-[Add your license here]
+MIT
 
 ## Contributing
 
